@@ -1,17 +1,8 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
 import random
 from copy import copy
 from simulation_helpers import generateAdjacenyMatrix
 from optimal_policy import computeTransY
-
-
-# In[2]:
 
 
 '''
@@ -28,9 +19,6 @@ def selectRandom(y, Q, A, L):
     tests[np.random.choice(np.nonzero(Q)[0], L, replace = False)] = 1
     
     return tests
-
-
-# In[3]:
 
 
 '''
@@ -53,9 +41,6 @@ def highRisk(y, Q, A, L):
     return tests
 
 
-# In[4]:
-
-
 def highConnection(y, Q, A, L):
     '''
     Heuristic that tests those that are most connected on the graph
@@ -70,9 +55,6 @@ def highConnection(y, Q, A, L):
     tests[np.argsort(R)[::-1][:L]] = 1 #Test the top L most connected to removed nodes
 
     return tests
-
-
-# In[5]:
 
 
 '''
@@ -95,9 +77,6 @@ def highBelief(y, Q, A, L):
     return tests
 
 
-# In[6]:
-
-
 def sampleBelief(y,Q,A,L, softmax = True):
     '''
     Heuristic that samples who to test by building a (softmax) distirbution over nodes
@@ -114,9 +93,6 @@ def sampleBelief(y,Q,A,L, softmax = True):
     tests = np.zeros(len(Q))
     tests[np.random.choice(np.arange(len(Q)), L, p = dist, replace = False)] = 1 #Test L nodes sampled from distribution
     return tests
-
-
-# In[7]:
 
 
 '''
@@ -143,9 +119,6 @@ def highBeliefRisk(y, Q, A, L, consider_removed = False):
     return tests
 
 
-# In[8]:
-
-
 def sampleBeliefRisk(y, Q, A, L, consider_removed = False, softmax = False):
     '''
     Heuristic that tests those that are most connected to the people most likely to be sick
@@ -168,66 +141,39 @@ def sampleBeliefRisk(y, Q, A, L, consider_removed = False, softmax = False):
     return tests
 
 
-# In[9]:
-
 # Removed nodes from the graph based on testing and if the node is infected
 def removeNodes(y, Q, test, q):
     
-    a = np.empty_like (y)
-    a[:] = y
-    
     # amounce the infected, announce == 0 if that person decides to announce
-    announce = np.random.binomial(1,q,len(a))    
-    announce = np.multiply(a,announce)  
-    announce = 1 - announce
+    announce = np.zeros(len(Q))
+    announce[y.astype(np.bool)] = np.random.binomial(1,q,int(y.sum()))    
     
     # remove the person who has announced from the graph
-    Q[announce == 0] = announce[announce == 0]
+    Q[announce.astype(np.bool)] = 0
     
-
     # test result according to the test we selected
-    testResult = np.multiply(y,test)
-    testResult = 1-testResult
-    
-    # remove the people that are tested infected 
-    Q[testResult == 0] = testResult[testResult == 0]
+    Q[np.multiply(y,test).astype(np.bool)] = 0
     
     return Q
 
-
-# In[10]:
 
 # Infect the next generation of nodes
 def infection(yReal, Q, p, A):
     
     R = np.zeros(len(Q))
-    
     R[Q] = np.matmul(A[Q,:][:,Q], yReal[Q])
 
-    
-
     infection = np.zeros(len(Q))
+    infection[R > 0] = np.random.binomial(R[R>0].astype(np.int32), p, (R>0).sum()) > 0
 
-    for i in range(len(R)):
-        source = int(R[i])
-
-
-        if source > 0:
-            v = np.random.binomial(1, p, source)
-            if v.sum() > 0:
-                infection[i] = 1
-            
-    
     return np.clip(yReal + infection, 0, 1)
-
-
-# In[11]:
 
 
 def sample(func, Q, h, p, q, L, A, n):
     
     # number of infection on the graph
-    numInf = np.zeros(h)
+    numInf = np.zeros(h+1)
+    numInf[0] = 1
     
     # belief state
     y = np.ones(n)/n 
@@ -248,31 +194,24 @@ def sample(func, Q, h, p, q, L, A, n):
         R = np.zeros(len(Q))    
         R[Q] = np.matmul(A[Q,:][:,Q], yReal[Q])            
         done = (max(R) == 0) or (min(yReal[Q]) == 1)
-            
-            
+        
         # else proceed 
         if not done:
             
             #get infected from the current state
             yReal = infection(yReal, Q, p, A)
             
-            
             # test
             test = func(y, Q, A, L)
             
             # update Q
             Q = removeNodes(yReal, Q, test, q)
-            
-            Q[start] = 0
-            
+                        
             # update y
             y = computeTransY(y, R, p)
                 
         # count the num of infected on the graph
-        Q = Q.astype(np.bool)
-        inf = yReal[Q]  
-        numInf[m] = int(inf.sum())
+        numInf[m+1] = int(y.sum())
  
-
     return numInf
 

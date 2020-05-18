@@ -170,7 +170,7 @@ def sampleBeliefRisk(y, Q, A, L, consider_removed = False, softmax = False):
 
 # In[9]:
 
-
+# Removed nodes from the graph based on testing and if the node is infected
 def removeNodes(y, Q, test, q):
     
     a = np.empty_like (y)
@@ -197,12 +197,12 @@ def removeNodes(y, Q, test, q):
 
 # In[10]:
 
-
-def infection(y, Q, p, A):
+# Infect the next generation of nodes
+def infection(yReal, Q, p, A):
     
     R = np.zeros(len(Q))
     
-    R[Q] = np.matmul(A[Q,:][:,Q], y[Q])
+    R[Q] = np.matmul(A[Q,:][:,Q], yReal[Q])
 
     
 
@@ -218,7 +218,7 @@ def infection(y, Q, p, A):
                 infection[i] = 1
             
     
-    return np.clip(y + infection, 0, 1)
+    return np.clip(yReal + infection, 0, 1)
 
 
 # In[11]:
@@ -235,6 +235,7 @@ def sample(func, Q, h, p, q, L, A, n):
     # real infection progression
     yReal = np.zeros(n)
     
+    # select the starting node
     start = random.randint(0,n-1) 
     yReal[start] = 1
     y[start] = 1

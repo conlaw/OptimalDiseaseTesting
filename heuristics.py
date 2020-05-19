@@ -62,7 +62,7 @@ def highRisk(y, Q, A, L, args = {}):
     return tests
 
 
-def highConnection(y, Q, A, L):
+def highConnection(y, Q, A, L, args = {}): #LH added in args = {}
     '''
     Heuristic that tests those that are most connected on the graph
     '''

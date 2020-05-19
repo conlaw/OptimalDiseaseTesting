@@ -61,7 +61,8 @@ def AdjacencyUniWMajor(N,C,mu,sd,M,plug,perc):
         currentOutMajorPopulation=np.delete(range(N),currentInMajorS)
         #for the rest of the class, it can still be selected from in-major students.
         #thus, if we set perc=0, it is equivalent to no major restriction
-        currentOutMajorS=np.random.choice(currentOutMajorPopulation,outMajorS[0],replace=False)
+        outMajorSCap=min(outMajorS[0],np.shape(currentOutMajorPopulation)[0])
+        currentOutMajorS=np.random.choice(currentOutMajorPopulation,outMajorSCap,replace=False)
 
         currentS=np.append(currentInMajorS,currentOutMajorS)
         A2temp[currentS,i]=1
@@ -83,6 +84,7 @@ def plotUniversityNetwork(A2,M,MS):
     excludeNode2=sum(A2)==0
     excludeNodeIndex2=np.where(excludeNode2)[0]
 
+    MSmajor=np.repeat(range(M),MS) #each int value denotes a major
     excludeMSmajor2=np.delete(MSmajor,excludeNodeIndex2)
     excludeMScounter=Counter(excludeMSmajor2)
     excludeMS=[0]

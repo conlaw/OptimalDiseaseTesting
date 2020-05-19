@@ -1,7 +1,7 @@
 import numpy as np
 #Version where y is belief state
 
-def V(Q, y, h, done, p, q, L, A, V_saved, M = 20):
+def V(Q, y, h, done, p, q, L, A, V_saved, A_saved, M = 20):
     '''
     Recursive implementation of bellman operator
     '''
@@ -13,7 +13,7 @@ def V(Q, y, h, done, p, q, L, A, V_saved, M = 20):
         return y.sum()
 
     #Check if we already computed this
-    name = str(Q)+str(y)+str(done)+str(p)+str(q)
+    name = str(Q)+'-'+str(y)+'-'+str(h)
     if name in V_saved:
         return V_saved[name]
 
@@ -25,7 +25,9 @@ def V(Q, y, h, done, p, q, L, A, V_saved, M = 20):
     tests = generatePossibleTests(Q,L)
     
     #Compute value
-    V_saved[name] = np.max([computeQ(test, Q, y, h, R, p, q, L, A, V_saved, M) for test in tests])
+    Q_values = [computeQ(test, Q, y, h, R, p, q, L, A, V_saved, A_saved, M) for test in tests]
+    V_saved[name] = np.max(Q_values)
+    A_saved[name] = tests[np.argmax(Q_values)]
     
     return V_saved[name]
 
@@ -62,7 +64,7 @@ def generatePossibleTests(Q, L):
     #return valid tests (assume will test all we can)
     return tests[tests.sum(axis=1) == L]        
         
-def computeQ(test, Q, y, h, R, p, q, L, A, V_saved, M):
+def computeQ(test, Q, y, h, R, p, q, L, A, V_saved, A_saved, M):
     '''
     Helper function to compute q value for different testing procedures
     '''
@@ -76,10 +78,6 @@ def computeQ(test, Q, y, h, R, p, q, L, A, V_saved, M):
     self_prob = 0
     
     for Q_n in zip(Q_s, Q_pr):
-        #If we transition to where we currently are, save that prob but dont try to do recursion
-        if np.array_equal(y_n, y) and np.array_equal(Q_n[0],Q):
-            self_prob += Q_n[1]
-            continue
         
         #Add recursion term to bellman operator
         val += Q_n[1]*V(Q_n[0],
@@ -88,9 +86,10 @@ def computeQ(test, Q, y, h, R, p, q, L, A, V_saved, M):
                                checkDone(computeR(Q_n[0], y_n, A), y_n, Q_n[0]),
                                p, q, L, A,
                                V_saved,
+                               A_saved,
                                M)
       
-    return val/(1-self_prob)
+    return val
 
 def computeR(Q,y,A):
     '''
@@ -99,7 +98,7 @@ def computeR(Q,y,A):
 
     R = np.zeros(len(Q))
     #Do matrix multiplication of DIAG(Q)*A*DIAG(Q)*Y
-    R[Q] = np.matmul(A[Q,:][:,Q],y[Q])
+    R[Q.astype(np.bool)] = np.matmul(A[Q.astype(np.bool),:][:,Q.astype(np.bool)],y[Q.astype(np.bool)])
     
     return R
 
@@ -109,7 +108,7 @@ def checkDone(R,y,Q, thresh = 0):
     '''
     #Epidemic is over if no healthy people are connected to someone sick
     #Or there's nobody health left on the graph
-    return max(R) <= thresh or max(1-y[Q]) <= thresh
+    return max(R) <= thresh or max(1-y[Q.astype(np.bool)]) <= thresh
 
 def computeTransY(y, R, p):
     '''
@@ -136,20 +135,20 @@ def computeTransQ(Q, y, tests, q, thresh = 0):
     #Can make it exponential in n - n_inf but not sure how much that'll really help
     for i in range(len(Q)):
         if arr is not None:
-            base = np.ones(arr.shape[0]).reshape((arr.shape[0],1)).astype(np.bool)
+            base = np.ones(arr.shape[0]).reshape((arr.shape[0],1))
 
         if Q[i] == 0:
             if arr is None:
-                arr = np.array([False]).reshape((1,1))
+                arr = np.array([0]).reshape((1,1))
                 pr = np.array([1])
             else:
                 arr = np.hstack([arr,  base*0])
         else:
             if arr is None:
-                arr = np.array([False,True]).reshape((2,1))
+                arr = np.array([0,1]).reshape((2,1))
                 pr = np.array([p0[i], (1- p0[i])])
             else:
-                arr = np.vstack([np.hstack([arr,~base]), np.hstack([arr,base])])
+                arr = np.vstack([np.hstack([arr,base*0]), np.hstack([arr,base])])
                 pr = np.concatenate([pr*p0[i], pr*(1-p0[i])])
         
         arr = arr[pr > thresh,:]

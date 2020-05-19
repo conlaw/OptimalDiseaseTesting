@@ -4,16 +4,37 @@ from copy import copy
 from simulation_helpers import generateAdjacenyMatrix
 from optimal_policy import computeTransY
 
+''' 
+Optimal Policy 
+-
+'''
+
+def optimalPolicy(y, Q, A, L, args = {}):
+    '''
+    Heuristic that tests uninfected people randomly
+    '''
+    L = min(L, Q.sum())
+    
+    if 'actions' not in args:
+        raise Exception("Missing Optimal Actions for simulating it")
+    
+    M = args['M'] if 'M' in args else 20
+    
+    y_disc = (y*M).astype(np.int32) / M
+    
+    name = str(Q)+'-'+str(y_disc)+'-'+str(args['h'])
+    
+    return args['actions'][name]
 
 '''
 Baseline Heuristics
 -Simple naif heuristics
 '''
-def selectRandom(y, Q, A, L):
+def selectRandom(y, Q, A, L, args = {}):
     '''
     Heuristic that tests uninfected people randomly
     '''
-    L = min(L, Q.sum())
+    L = int(min(L, Q.sum()))
     
     tests = np.zeros(len(Q))
     tests[np.random.choice(np.nonzero(Q)[0], L, replace = False)] = 1
@@ -25,7 +46,7 @@ def selectRandom(y, Q, A, L):
 Graph-Based Heuristics
 -These heuristics test based solely off of graph structure
 '''
-def highRisk(y, Q, A, L):
+def highRisk(y, Q, A, L, args = {}):
     '''
     Heuristic that tests those closest to those removed from the graph
     '''
@@ -62,7 +83,7 @@ Belief Heuristics
 -These heuristics operate by selecting who to test based on our belief state
 '''
 
-def highBelief(y, Q, A, L):
+def highBelief(y, Q, A, L, args = {}):
     '''
     Heuristic that tests the L individuals with highest beliefs
     '''
@@ -77,7 +98,7 @@ def highBelief(y, Q, A, L):
     return tests
 
 
-def sampleBelief(y,Q,A,L, softmax = True):
+def sampleBelief(y, Q, A, L, args = {}, softmax = False):
     '''
     Heuristic that samples who to test by building a (softmax) distirbution over nodes
     '''
@@ -99,7 +120,7 @@ def sampleBelief(y,Q,A,L, softmax = True):
 Hybrid Heuristics
 -These heuristics operate based on a combination of graph and belief data
 '''
-def highBeliefRisk(y, Q, A, L, consider_removed = False):
+def highBeliefRisk(y, Q, A, L, args = {}, consider_removed = False):
     '''
     Heuristic that tests those that are most connected to the people most likely to be sick
     '''
@@ -119,7 +140,7 @@ def highBeliefRisk(y, Q, A, L, consider_removed = False):
     return tests
 
 
-def sampleBeliefRisk(y, Q, A, L, consider_removed = False, softmax = False):
+def sampleBeliefRisk(y, Q, A, L, args = {}, consider_removed = False, softmax = False):
     '''
     Heuristic that tests those that are most connected to the people most likely to be sick
     '''
@@ -140,78 +161,4 @@ def sampleBeliefRisk(y, Q, A, L, consider_removed = False, softmax = False):
 
     return tests
 
-
-# Removed nodes from the graph based on testing and if the node is infected
-def removeNodes(y, Q, test, q):
-    
-    # amounce the infected, announce == 0 if that person decides to announce
-    announce = np.zeros(len(Q))
-    announce[y.astype(np.bool)] = np.random.binomial(1,q,int(y.sum()))    
-    
-    # remove the person who has announced from the graph
-    Q[announce.astype(np.bool)] = 0
-    
-    # test result according to the test we selected
-    Q[np.multiply(y,test).astype(np.bool)] = 0
-    
-    return Q
-
-
-# Infect the next generation of nodes
-def infection(yReal, Q, p, A):
-    
-    R = np.zeros(len(Q))
-    R[Q] = np.matmul(A[Q,:][:,Q], yReal[Q])
-
-    infection = np.zeros(len(Q))
-    infection[R > 0] = np.random.binomial(R[R>0].astype(np.int32), p, (R>0).sum()) > 0
-
-    return np.clip(yReal + infection, 0, 1)
-
-
-def sample(func, Q, h, p, q, L, A, n):
-    
-    # number of infection on the graph
-    numInf = np.zeros(h+1)
-    numInf[0] = 1
-    
-    # belief state
-    y = np.ones(n)/n 
-    
-    # real infection progression
-    yReal = np.zeros(n)
-    
-    # select the starting node
-    start = random.randint(0,n-1) 
-    yReal[start] = 1
-    y[start] = 1
-    
-    
-    done = False 
-    
-    for m in range(h): 
-        # done if no healthy ppl connected to someone sick or nobody healthy on graph
-        R = np.zeros(len(Q))    
-        R[Q] = np.matmul(A[Q,:][:,Q], yReal[Q])            
-        done = (max(R) == 0) or (min(yReal[Q]) == 1)
-        
-        # else proceed 
-        if not done:
-            
-            #get infected from the current state
-            yReal = infection(yReal, Q, p, A)
-            
-            # test
-            test = func(y, Q, A, L)
-            
-            # update Q
-            Q = removeNodes(yReal, Q, test, q)
-                        
-            # update y
-            y = computeTransY(y, R, p)
-                
-        # count the num of infected on the graph
-        numInf[m+1] = int(y.sum())
- 
-    return numInf
 

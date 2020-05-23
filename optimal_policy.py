@@ -26,11 +26,12 @@ def V(Q, y, h, done, p, q, L, A, V_saved, A_saved, M = 20):
     
     #Compute value
     Q_values = [computeQ(test, Q, y, h, R, p, q, L, A, V_saved, A_saved, M) for test in tests]
-    V_saved[name] = np.max(Q_values)
-    A_saved[name] = tests[np.argmax(Q_values)]
+    V_saved[name] = np.min(Q_values)
+    A_saved[name] = tests[np.argmin(Q_values)]
     
     return V_saved[name]
-
+        
+        
 def generatePossibleTests(Q, L):
     '''
     Helper function to generate list of all possible tests
@@ -62,8 +63,11 @@ def generatePossibleTests(Q, L):
         tests = tests[tests.sum(axis=1) <= L]
     
     #return valid tests (assume will test all we can)
-    return tests[tests.sum(axis=1) == L]        
-        
+    return tests[tests.sum(axis=1) == L]    
+
+def getKey(Q, y, h, checkDone):
+    return str(Q)+'-'+str(y)+'-'+str(h)
+    
 def computeQ(test, Q, y, h, R, p, q, L, A, V_saved, A_saved, M):
     '''
     Helper function to compute q value for different testing procedures

@@ -1,30 +1,9 @@
 import numpy as np
 import random
 from copy import copy
-from simulation_helpers import generateAdjacenyMatrix
-from optimal_policy import computeTransY
+from optimal_policy import computeTransY, V
 
-''' 
-Optimal Policy 
--
-'''
 
-def optimalPolicy(y, Q, A, L, args = {}):
-    '''
-    Heuristic that tests uninfected people randomly
-    '''
-    L = min(L, Q.sum())
-    
-    if 'actions' not in args:
-        raise Exception("Missing Optimal Actions for simulating it")
-    
-    M = args['M'] if 'M' in args else 20
-    
-    y_disc = (y*M).astype(np.int32) / M
-    
-    name = str(Q)+'-'+str(y_disc)+'-'+str(args['h'])
-    
-    return args['actions'][name]
 
 '''
 Baseline Heuristics
@@ -155,10 +134,33 @@ def sampleBeliefRisk(y, Q, A, L, args = {}, consider_removed = False, softmax = 
     R[1-Q] = 0 #If person is removed set risk to 0
     
     dist = np.exp(R)/np.exp(R).sum() if softmax else R/R.sum()
-
+    
     tests = np.zeros(len(Q))
-    tests[np.random.choice(np.arange(len(Q)), L, p = dist, replace = False)] = 1 #Test L nodes sampled from distribution
+    tests[np.random.choice(np.arange(len(Q)), min(L, sum(dist > 0)), p = dist, replace = False)] = 1 #Test L nodes sampled from distribution
 
     return tests
 
 
+''' 
+Optimal Policy 
+-
+'''
+
+def optimalPolicy(V_saved, A_saved, p, q, y, Q, A, L, n, args = {}):
+    '''
+    Helper function to simulate optimal policy
+    '''
+    L = min(L, Q.sum())
+    h = args['h']
+        
+    M = args['M'] if 'M' in args else 20
+    
+    y_disc = (y*M).astype(np.int32) / M
+    
+    name = str(Q.astype(np.float32))+'-'+str(y_disc)+'-'+str(h)
+    
+    #If we haven't solved the optimal policy for this state yet, do so
+    if name not in A_saved:
+        V(Q.astype(np.float32), (y*M).astype(np.int32), h, False, p, q, L, A, V_saved, A_saved, M=M)
+    
+    return A_saved[name]

@@ -2,6 +2,7 @@ import numpy as np
 import random
 from copy import copy
 from optimal_policy import computeTransY
+from heuristics import optimalPolicy
 
 def generateAdjacenyMatrix(n, p):
     '''
@@ -83,6 +84,51 @@ def sample(func, Q, h, p, q, L, A, n, args = {}):
             # test
             args['h'] = h - m
             test = func(y, Q, A, L, args)
+            
+            # update Q
+            Q = removeNodes(yReal, Q, test, q)
+                        
+            # update y
+            y = computeTransY(y, R, p)
+                
+        # count the num of infected on the graph
+        numInf[m+1] = int(y.sum())
+ 
+    return numInf
+
+def sampleOptimal(V_saved, A_saved, Q, h, p, q, L, A, n, args = {}):
+    
+    # number of infection on the graph
+    numInf = np.zeros(h+1)
+    numInf[0] = 1
+    
+    # belief state
+    y = np.ones(n)/n 
+    
+    # real infection progression
+    yReal = np.zeros(n)
+    
+    # select the starting node
+    start = random.randint(0,n-1) 
+    yReal[start] = 1    
+    
+    done = False 
+    
+    for m in range(h): 
+        # done if no healthy ppl connected to someone sick or nobody healthy on graph
+        R = np.zeros(len(Q))    
+        R[Q.astype(np.bool)] = np.matmul(A[Q.astype(np.bool),:][:,Q.astype(np.bool)], yReal[Q.astype(np.bool)])            
+        done = (max(R) == 0) or (min(yReal[Q.astype(np.bool)]) == 1)
+        
+        # else proceed 
+        if not done:
+            
+            #get infected from the current state
+            yReal = infection(yReal, Q, p, A)
+            
+            # test
+            args['h'] = h - m
+            test = optimalPolicy(V_saved, A_saved, p, q, y, Q, A, L, n, args)
             
             # update Q
             Q = removeNodes(yReal, Q, test, q)

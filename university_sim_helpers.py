@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import operator as op
 import math
 import numpy as np
@@ -12,10 +6,6 @@ from collections import Counter
 import networkx as nx
 from networkx.algorithms import node_classification
 import matplotlib.pyplot as plt
-
-
-# In[ ]:
-
 
 def AdjacencyUniWMajor(N,C,mu,sd,M,plug,perc):
     '''Helper Function
